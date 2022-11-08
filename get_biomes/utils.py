@@ -151,6 +151,7 @@ def is_valid_filter(parser, arg, var):
                 f"argument {var}: Invalid value {key}.\n"
                 f"Valid values are: {convert_list_to_str(filters)}"
             )
+    return arg
 
 
 defaults = {
@@ -320,6 +321,16 @@ def calc_chunksize(n_workers, len_iterable, factor=4):
 
 
 def get_mgnify_data(sample):
+    instrument_model = None
+    sequencing_method = None
+    investigation_type = None
+    for k in sample.sample_metadata:
+        if k["key"] == "instrument model":
+            instrument_model = k["value"]
+        elif k["key"] == "sequencing method":
+            sequencing_method = k["value"]
+        elif k["key"] == "investigation type":
+            investigation_type = k["value"]
     d = {
         "accession": sample.accession,
         "sample_accession": sample.biosample,
@@ -333,6 +344,9 @@ def get_mgnify_data(sample):
         "environment_biome": sample.environment_biome,
         "environment_feature": sample.environment_feature,
         "environment_material": sample.environment_material,
+        "instrument_model": instrument_model,
+        "sequencing_method": sequencing_method,
+        "investigation_type": investigation_type,
     }
 
     df_mg = pd.DataFrame({k: [v] for k, v in d.items()})
@@ -342,9 +356,9 @@ def get_mgnify_data(sample):
 def get_data(url):
     # Get the data from the API
     retry_strategy = Retry(
-        total=10,
+        total=5,
         backoff_factor=1,
-        status_forcelist=[204, 429, 500, 502, 503, 504, 403],
+        status_forcelist=[429, 500, 502, 503, 504, 403],
         allowed_methods=["HEAD", "GET", "OPTIONS"],
     )
     adapter = HTTPAdapter(max_retries=retry_strategy)
