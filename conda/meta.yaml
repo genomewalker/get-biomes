@@ -20,7 +20,6 @@ requirements:
     - Cython>=0.29.24
   run:
     - python==3.9
-    - pandas>=1.3.3
 test:
   commands:
     - getBiomes -h
