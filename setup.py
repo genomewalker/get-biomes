@@ -6,7 +6,6 @@ requirements = [
     "tqdm==4.50.0",
     "jsonapi_client",
     "requests",
-    "urllib3",
 ]
 
 setup(
@@ -18,7 +17,6 @@ setup(
         "tqdm==4.50.0",
         "jsonapi_client",
         "requests",
-        "urllib3",
     ],
     name="get-biomes",
     version=versioneer.get_version(),
