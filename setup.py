@@ -4,8 +4,9 @@ import versioneer
 requirements = [
     "pandas>=1.3.3",
     "tqdm>=4.50.0",
-    "jsonapi_client>=0.9.9",
-    "requests>=2.28.1",
+    "jsonapi_client",
+    "requests",
+    "tqdm"
 ]
 
 setup(
@@ -13,8 +14,9 @@ setup(
         # Setuptools 18.0 properly handles Cython extensions.
         "setuptools>=18.0",
         "Cython>=0.29.24",
-        "jsonapi_client>=0.9.9",
-        "requests>=2.28.1",
+        "jsonapi_client",
+        "requests",
+        "tqdm"
     ],
     name="get-biomes",
     version=versioneer.get_version(),
