@@ -21,13 +21,8 @@ requirements:
   run:
     - python==3.9
     - pandas>=1.3.3
-    - scipy>=1.5.2
-    - tqdm==4.50.0
-    - pysam>=0.17.0
-    - numpy>=1.21.2
-    - Cython>=0.29.24
-    - pyranges>=0.0.112
-    - datatable>=0.11.1
+    - tqdm
+    - requests
     
 test:
   commands:
@@ -35,6 +30,6 @@ test:
 
 about:
   home: https://github.com/genomewalker/get-biomes
-  summary: "A simple tool to identify and clean misassemblies for ancient metagenomics"
+  summary: "A simple tool to get biomes related data from MGnify and ENA"
   license: {{ setup_data['license'] }}
   license_file: LICENSE

@@ -91,6 +91,8 @@ def main():
             # print(dfs)
 
             dfs = concat_df(dfs)
+            print(dfs)
+            print(samples)
             dfs = dfs.merge(samples, on="sample_accession")
             results.append(dfs)
     results = concat_df(results)
