@@ -1,0 +1,8 @@
+name: get-biomes
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python>=3.9,<3.10
+  - pip
