@@ -13,6 +13,8 @@ setup(
         # Setuptools 18.0 properly handles Cython extensions.
         "setuptools>=18.0",
         "Cython>=0.29.24",
+        "jsonapi_client>=0.9.9",
+        "requests>=2.28.1",
     ],
     name="get-biomes",
     version=versioneer.get_version(),
