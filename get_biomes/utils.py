@@ -344,7 +344,7 @@ def get_data(url):
     retry_strategy = Retry(
         total=10,
         backoff_factor=1,
-        status_forcelist=[429, 500, 502, 503, 504, 403],
+        status_forcelist=[204, 429, 500, 502, 503, 504, 403],
         allowed_methods=["HEAD", "GET", "OPTIONS"],
     )
     adapter = HTTPAdapter(max_retries=retry_strategy)
@@ -367,6 +367,6 @@ def get_ena_data(accession):
     try:
         df = pd.read_csv(data, sep="\t")
     except pd.errors.EmptyDataError:
-        df = pd.DataFrame()
+        df = None
     return df
     # return pd.read_csv(ena_url, sep="\t")
