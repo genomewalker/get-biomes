@@ -5,6 +5,8 @@ requirements = [
     "pandas>=1.3.3",
     "tqdm==4.50.0",
     "jsonapi_client",
+    "requests",
+    "urllib3",
 ]
 
 setup(
