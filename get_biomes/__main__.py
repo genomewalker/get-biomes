@@ -17,11 +17,11 @@ import pandas as pd
 from get_biomes.utils import (
     get_arguments,
     concat_df,
-    API_BASE,
     get_mgnify_data,
     get_ena_data,
     create_output_files,
 )
+from get_biomes.defaults import API_BASE
 from jsonapi_client import Filter, Session
 from urllib.parse import urlencode
 import urllib.parse
@@ -66,25 +66,36 @@ def main():
     with Session(API_BASE) as session:
 
         # configure the filters
-        params = args.mg_filter
-
-        api_filter = Filter(urlencode(params))
+        if args.mg_filter is not None:
+            params = args.mg_filter
+            api_filter = Filter(urlencode(params))
 
         for biome in biomes:
-            log.info(f"Processing biome: {biome}")
+            log.info(f"Processing biome: {biome}...")
             if Path(output_files[biome]).is_file():
                 log.info(f"File {output_files[biome]} already exists, skipping")
                 continue
             log.info("::: Gathering sample info from MGnify...")
             query = urllib.parse.quote(f"biomes/{biome}/samples")
-            samples = [
-                get_mgnify_data(x)
-                for x in tqdm.tqdm(
-                    session.iterate(query, api_filter),
-                    desc="Samples processed",
-                    leave=False,
-                )
-            ]
+            if args.mg_filter is not None:
+                samples = [
+                    get_mgnify_data(x)
+                    for x in tqdm.tqdm(
+                        session.iterate(query, api_filter),
+                        desc="Samples processed",
+                        leave=False,
+                    )
+                ]
+            else:
+                samples = [
+                    get_mgnify_data(x)
+                    for x in tqdm.tqdm(
+                        session.iterate(query),
+                        desc="Samples processed",
+                        leave=False,
+                    )
+                ]
+
             samples = concat_df(samples)
 
             log.info("::: Getting ENA links...")
@@ -93,7 +104,7 @@ def main():
             dfs = list(
                 tqdm.tqdm(
                     p.imap_unordered(
-                        partial(get_ena_data, min_read_count=args.min_read_count),
+                        partial(get_ena_data, filter_conditions=args.ena_filter),
                         samples.accession,
                     ),
                     total=len(samples.accession),
@@ -106,9 +117,25 @@ def main():
             p.join()
             # print(dfs)
             dfs = [x for x in dfs if x is not None]
-            dfs = concat_df(dfs)
+            if len(dfs) > 0:
+                dfs = concat_df(dfs)
+                dfs = samples.merge(dfs, on="sample_accession")
+            else:
+                columns = [
+                    "study_accession",
+                    "experiment_accession",
+                    "run_accession",
+                    "read_count",
+                    "instrument_model",
+                    "instrument_platform",
+                    "library_layout",
+                    "library_strategy",
+                    "library_selection",
+                    "fastq_ftp",
+                ]
+                dfs[columns] = None
+
             dfs["query_biome"] = biome
-            dfs = dfs.merge(samples, on="sample_accession")
             logging.info("::: Writing output file...")
             dfs.to_csv(
                 output_files[biome],
@@ -118,6 +145,8 @@ def main():
 
     if args.combine:
         logging.info("Combining output files...")
+        if os.path.exists(output_files["combined"]):
+            os.remove(output_files["combined"])
         dfs = []
         for file in output_files.values():
             if file == output_files["combined"]:

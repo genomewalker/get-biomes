@@ -19,18 +19,38 @@ from contextlib import contextmanager, redirect_stderr, redirect_stdout
 import json
 from pathlib import Path
 import re
+from get_biomes.defaults import (
+    mgnify_filters,
+    ena_filters,
+    API_BASE_ENA,
+    ena_library_source,
+    ena_library_selection,
+    ena_library_strategy,
+    ena_library_layout,
+)
 
 log = logging.getLogger("my_logger")
 log.setLevel(logging.INFO)
 timestr = time.strftime("%Y%m%d-%H%M%S")
 
 
-API_BASE = "https://www.ebi.ac.uk/metagenomics/api/v1"
-API_BASE_ENA = "https://www.ebi.ac.uk/ena/portal/api/"
-
-
 def is_debug():
     return logging.getLogger("my_logger").getEffectiveLevel() == logging.DEBUG
+
+
+def fast_flatten(input_list):
+    return list(chain.from_iterable(input_list))
+
+
+def concat_df(frames):
+    COLUMN_NAMES = frames[0].columns
+    df_dict = dict.fromkeys(COLUMN_NAMES, [])
+    for col in COLUMN_NAMES:
+        extracted = (frame[col] for frame in frames)
+        # Flatten and save to df_dict
+        df_dict[col] = fast_flatten(extracted)
+    df = pd.DataFrame.from_dict(df_dict)[COLUMN_NAMES]
+    return df
 
 
 def check_values(val, minval, maxval, parser, var):
@@ -113,27 +133,6 @@ def is_valid_file(parser, arg, var):
         return arg
 
 
-filters = [
-    "experiment_type",
-    "biome_name",
-    "lineage",
-    "geo_loc_name",
-    "latitude_gte",
-    "latitude_lte",
-    "longitude_gte",
-    "longitude_lte",
-    "species",
-    "instrument_model",
-    "instrument_platform",
-    "metadata_key",
-    "metadata_value_gte",
-    "metadata_value_lte",
-    "metadata_value",
-    "environment_material",
-    "environment_feature",
-    "study_accession",
-    "include",
-]
 # From https://stackoverflow.com/a/59617044/15704171
 def convert_list_to_str(lst):
     n = len(lst)
@@ -144,27 +143,64 @@ def convert_list_to_str(lst):
     return ", ".join(lst[:-1]) + f" or {lst[-1]}"
 
 
-def is_valid_filter(parser, arg, var):
+def is_valid_filter(parser, arg, var, filter_list):
     arg = json.loads(arg)
     # check if the dictionary keys are in the mdmg header list
-    for key in arg.keys():
-        if key not in filters:
-            parser.error(
-                f"argument {var}: Invalid value {key}.\n"
-                f"Valid values are: {convert_list_to_str(filters)}"
-            )
+    if var == "--ena-filter":
+        for key in arg.keys():
+            if key not in filter_list.keys():
+                trms = convert_list_to_str(list(filter_list.keys()))
+                parser.error(
+                    f"argument {var}: Invalid key {key}. Valid keys are {trms}!"
+                )
+        for key in arg.keys():
+            if key == "read_count":
+                if int(arg[key]) < 1:
+                    parser.error(
+                        f"argument {var}: Invalid value for {arg[key]}. Valid values have to be larger than 1!"
+                    )
+            else:
+                if arg[key] not in ena_filters[key]:
+                    trms = convert_list_to_str(list(ena_filters[key]))
+                    parser.error(
+                        f"argument {var}: Invalid value for {key}. Valid values are {trms}!"
+                    )
+    else:
+        for key in arg.keys():
+            if key not in filter_list:
+                parser.error(
+                    f"argument {var}: Invalid value {key}.\n"
+                    f"Valid values are: {convert_list_to_str(filter_list)}"
+                )
     return arg
 
 
-defaults = {"threads": 1, "outfile": "output.tsv", "prefix": None, "min_read_count": 0}
+defaults = {
+    "threads": 1,
+    "outfile": "output.tsv",
+    "prefix": None,
+    "min_read_count": 0,
+    "mg_filter": {
+        "experiment_type": "metagenomic",
+        "instrument_platform": "illumina",
+    },
+    "ena_filter": {
+        "library_layout": "PAIRED",
+        "library_strategy": "WGS",
+        "library_source": "METAGENOMIC",
+        "library_selection": "RANDOM",
+        "read_count": 10000000,
+    },
+}
 
 help_msg = {
     "biomes": "A txt file containing MGnify biomes. Ex: root:Environmental:Aquatic:Marine",
     "threads": "Number of threads to use",
-    "mg_filter": f"Key-value pairs to filter the MGnify metadata. Valid values are: {convert_list_to_str(filters)}",
+    "mg_filter": f"Key-value pairs to filter the MGnify metadata. Valid values are: {convert_list_to_str(mgnify_filters)}",
+    "ena_filter": f"Key-value pairs to filter the ENA metadata. Valid values are: {convert_list_to_str(list(ena_filters.keys()))}",
     "prefix": "Prefix for the output file",
-    "min_read_count": "Minimum number of reads",
     "outfile": "Output file name",
+    "paired": "Only keep paired-end samples",
     "combine": "Combine all output files into one",
     "clean": "Remove existing output files",
     "help": "Help message",
@@ -192,18 +228,22 @@ def get_arguments(argv=None):
         required=True,
     )
     optional.add_argument(
-        "-f",
-        "--filter",
-        type=lambda x: is_valid_filter(parser, x, "--filter"),
+        "--mgnify-filter",
+        type=lambda x: is_valid_filter(parser, x, "--mgnify-filter", mgnify_filters),
         dest="mg_filter",
-        default={
-            "experiment_type": "metagenomic",
-            "instrument_platform": "illumina",
-        },
+        default=None,
         help=help_msg["mg_filter"],
         required=False,
     )
-    parser.add_argument(
+    optional.add_argument(
+        "--ena-filter",
+        type=lambda x: is_valid_filter(parser, x, "--ena-filter", ena_filters),
+        dest="ena_filter",
+        default=None,
+        help=help_msg["ena_filter"],
+        required=False,
+    )
+    optional.add_argument(
         "-p",
         "--prefix",
         type=str,
@@ -220,19 +260,6 @@ def get_arguments(argv=None):
         dest="threads",
         default=1,
         help=help_msg["threads"],
-        required=False,
-    )
-    optional.add_argument(
-        "-m",
-        "--min-read-count",
-        type=lambda x: int(
-            check_values(
-                x, minval=1, maxval=sys.maxsize, parser=parser, var="--min-read-count"
-            )
-        ),
-        dest="min_read_count",
-        default=1,
-        help=help_msg["min_read_count"],
         required=False,
     )
     optional.add_argument(
@@ -295,21 +322,6 @@ def applyParallel(dfGrouped, func, threads, parms):
     return pd.concat(ret_list)
 
 
-def fast_flatten(input_list):
-    return list(chain.from_iterable(input_list))
-
-
-def concat_df(frames):
-    COLUMN_NAMES = frames[0].columns
-    df_dict = dict.fromkeys(COLUMN_NAMES, [])
-    for col in COLUMN_NAMES:
-        extracted = (frame[col] for frame in frames)
-        # Flatten and save to df_dict
-        df_dict[col] = fast_flatten(extracted)
-    df = pd.DataFrame.from_dict(df_dict)[COLUMN_NAMES]
-    return df
-
-
 def initializer(init_data):
     global parms
     parms = init_data
@@ -352,16 +364,16 @@ def calc_chunksize(n_workers, len_iterable, factor=4):
 
 
 def get_mgnify_data(sample):
-    instrument_model = None
-    sequencing_method = None
-    investigation_type = None
-    for k in sample.sample_metadata:
-        if k["key"] == "instrument model":
-            instrument_model = k["value"]
-        elif k["key"] == "sequencing method":
-            sequencing_method = k["value"]
-        elif k["key"] == "investigation type":
-            investigation_type = k["value"]
+    # instrument_model = None
+    # sequencing_method = None
+    # investigation_type = None
+    # for k in sample.sample_metadata:
+    #     if k["key"] == "instrument model":
+    #         instrument_model = k["value"]
+    #     elif k["key"] == "sequencing method":
+    #         sequencing_method = k["value"]
+    #     elif k["key"] == "investigation type":
+    #         investigation_type = k["value"]
     d = {
         "accession": sample.accession,
         "sample_accession": sample.biosample,
@@ -375,9 +387,6 @@ def get_mgnify_data(sample):
         "environment_biome": sample.environment_biome,
         "environment_feature": sample.environment_feature,
         "environment_material": sample.environment_material,
-        "instrument_model": instrument_model,
-        "sequencing_method": sequencing_method,
-        "investigation_type": investigation_type,
     }
 
     df_mg = pd.DataFrame({k: [v] for k, v in d.items()})
@@ -405,13 +414,24 @@ def get_data(url):
     return r
 
 
-def get_ena_data(accession, min_read_count):
-    ena_url = f"{API_BASE_ENA}filereport?accession={accession}&result=read_run&fields=sample_accession,study_accession,experiment_accession,run_accession,read_count,fastq_ftp&format=tsv&download=true&limit=0"
+def get_ena_data(accession, filter_conditions):
+    ena_url = f"{API_BASE_ENA}filereport?accession={accession}&result=read_run&fields=sample_accession,study_accession,experiment_accession,run_accession,read_count,instrument_model,instrument_platform,library_layout,library_strategy,library_selection,library_source,fastq_ftp&format=tsv&download=true&limit=0"
     data = get_data(ena_url)
     data.seek(0)
     try:
         df = pd.read_csv(data, sep="\t")
-        df = df[df["read_count"] >= min_read_count]
+        if filter_conditions is not None:
+            min_read_count = 0
+            if filter_conditions["read_count"]:
+                min_read_count = int(filter_conditions["read_count"])
+                del filter_conditions["read_count"]
+            df = df.loc[
+                (df[list(filter_conditions)] == pd.Series(filter_conditions)).all(
+                    axis=1
+                )
+            ]
+            if min_read_count > 0:
+                df = df[df["read_count"] >= min_read_count]
     except pd.errors.EmptyDataError:
         df = None
     return df
