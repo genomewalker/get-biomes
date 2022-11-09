@@ -17,6 +17,8 @@ from urllib3.util.retry import Retry
 import requests
 from contextlib import contextmanager, redirect_stderr, redirect_stdout
 import json
+from pathlib import Path
+import re
 
 log = logging.getLogger("my_logger")
 log.setLevel(logging.INFO)
@@ -154,16 +156,17 @@ def is_valid_filter(parser, arg, var):
     return arg
 
 
-defaults = {
-    "threads": 1,
-    "outfile": "output.tsv",
-}
+defaults = {"threads": 1, "outfile": "output.tsv", "prefix": None, "min_read_count": 0}
 
 help_msg = {
     "biomes": "A txt file containing MGnify biomes. Ex: root:Environmental:Aquatic:Marine",
     "threads": "Number of threads to use",
     "mg_filter": f"Key-value pairs to filter the MGnify metadata. Valid values are: {convert_list_to_str(filters)}",
+    "prefix": "Prefix for the output file",
+    "min_read_count": "Minimum number of reads",
     "outfile": "Output file name",
+    "combine": "Combine all output files into one",
+    "clean": "Remove existing output files",
     "help": "Help message",
     "debug": "Print debug messages",
     "version": "Print program version",
@@ -200,12 +203,13 @@ def get_arguments(argv=None):
         help=help_msg["mg_filter"],
         required=False,
     )
-    optional.add_argument(
-        "--output",
-        dest="outfile",
-        help=help_msg["outfile"],
-        required=False,
-        default=defaults["outfile"],
+    parser.add_argument(
+        "-p",
+        "--prefix",
+        type=str,
+        default=defaults["prefix"],
+        dest="prefix",
+        help=help_msg["prefix"],
     )
     optional.add_argument(
         "-t",
@@ -216,6 +220,33 @@ def get_arguments(argv=None):
         dest="threads",
         default=1,
         help=help_msg["threads"],
+        required=False,
+    )
+    optional.add_argument(
+        "-m",
+        "--min-read-count",
+        type=lambda x: int(
+            check_values(
+                x, minval=1, maxval=sys.maxsize, parser=parser, var="--min-read-count"
+            )
+        ),
+        dest="min_read_count",
+        default=1,
+        help=help_msg["min_read_count"],
+        required=False,
+    )
+    optional.add_argument(
+        "--combine",
+        dest="combine",
+        action="store_true",
+        help=help_msg["combine"],
+        required=False,
+    )
+    optional.add_argument(
+        "--clean",
+        dest="clean_output",
+        action="store_true",
+        help=help_msg["clean"],
         required=False,
     )
     optional.add_argument(
@@ -374,13 +405,28 @@ def get_data(url):
     return r
 
 
-def get_ena_data(accession):
-    ena_url = f"{API_BASE_ENA}filereport?accession={accession}&result=read_run&fields=sample_accession,study_accession,experiment_accession,run_accession,fastq_ftp&format=tsv&download=true&limit=0"
+def get_ena_data(accession, min_read_count):
+    ena_url = f"{API_BASE_ENA}filereport?accession={accession}&result=read_run&fields=sample_accession,study_accession,experiment_accession,run_accession,read_count,fastq_ftp&format=tsv&download=true&limit=0"
     data = get_data(ena_url)
     data.seek(0)
     try:
         df = pd.read_csv(data, sep="\t")
+        df = df[df["read_count"] >= min_read_count]
     except pd.errors.EmptyDataError:
         df = None
     return df
     # return pd.read_csv(ena_url, sep="\t")
+
+
+def create_output_files(prefix, input, biomes):
+    if prefix is None:
+        prefix = Path(input).resolve().stem.split(".")[0]
+
+    out_files = {}
+    out_files["combined"] = f"{prefix}__combined.tsv"
+    for biome in biomes:
+        # remove non alphanumeric characters from biome name
+        biome_enc = re.sub(r"\W+", "_", biome)
+        out_files[biome] = f"{prefix}__{biome_enc}.tsv"
+
+    return out_files

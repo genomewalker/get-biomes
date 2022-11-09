@@ -20,13 +20,17 @@ from get_biomes.utils import (
     API_BASE,
     get_mgnify_data,
     get_ena_data,
+    create_output_files,
 )
 from jsonapi_client import Filter, Session
 from urllib.parse import urlencode
 import urllib.parse
 import tqdm
 from multiprocessing import Pool
-
+import os
+import hashlib
+from pathlib import Path
+from functools import partial
 
 log = logging.getLogger("my_logger")
 
@@ -40,6 +44,9 @@ def main():
     )
 
     args = get_arguments()
+
+    # Check if outfile exists and remove it
+    # get full path to outfile
     logging.getLogger("my_logger").setLevel(
         logging.DEBUG if args.debug else logging.INFO
     )
@@ -48,7 +55,13 @@ def main():
 
     biomes = pd.read_csv(args.biomes, sep="\t", header=None)
     biomes = biomes[0].tolist()
-    results = []
+    output_files = create_output_files(args.prefix, args.biomes, biomes)
+
+    if args.clean_output:
+        logging.info("Removing old output files...")
+        for file in output_files:
+            if os.path.exists(output_files[file]):
+                os.remove(output_files[file])
     # API call
     with Session(API_BASE) as session:
 
@@ -59,6 +72,9 @@ def main():
 
         for biome in biomes:
             log.info(f"Processing biome: {biome}")
+            if Path(output_files[biome]).is_file():
+                log.info(f"File {output_files[biome]} already exists, skipping")
+                continue
             log.info("::: Gathering sample info from MGnify...")
             query = urllib.parse.quote(f"biomes/{biome}/samples")
             samples = [
@@ -77,7 +93,7 @@ def main():
             dfs = list(
                 tqdm.tqdm(
                     p.imap_unordered(
-                        get_ena_data,
+                        partial(get_ena_data, min_read_count=args.min_read_count),
                         samples.accession,
                     ),
                     total=len(samples.accession),
@@ -91,11 +107,24 @@ def main():
             # print(dfs)
             dfs = [x for x in dfs if x is not None]
             dfs = concat_df(dfs)
-
+            dfs["query_biome"] = biome
             dfs = dfs.merge(samples, on="sample_accession")
-            results.append(dfs)
-    results = concat_df(results)
-    results.to_csv(args.outfile, sep="\t", index=False)
+            logging.info("::: Writing output file...")
+            dfs.to_csv(
+                output_files[biome],
+                sep="\t",
+                index=False,
+            )
+
+    if args.combine:
+        logging.info("Combining output files...")
+        dfs = []
+        for file in output_files.values():
+            if file == output_files["combined"]:
+                continue
+            dfs.append(pd.read_csv(file, sep="\t"))
+        dfs = concat_df(dfs)
+        dfs.to_csv(output_files["combined"], sep="\t", index=False)
 
     logging.info("ALL DONE.")
 
