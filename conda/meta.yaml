@@ -23,6 +23,7 @@ requirements:
     - tqdm
     - requests
     - pandas
+    - jsonapi-client 
 test:
   commands:
     - getBiomes -h
