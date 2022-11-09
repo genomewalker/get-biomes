@@ -20,6 +20,8 @@ requirements:
     - Cython>=0.29.24
   run:
     - python==3.9
+    - tqdm
+    - requests
 test:
   commands:
     - getBiomes -h
