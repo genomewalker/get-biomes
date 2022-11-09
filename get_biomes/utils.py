@@ -38,6 +38,40 @@ def is_debug():
     return logging.getLogger("my_logger").getEffectiveLevel() == logging.DEBUG
 
 
+class SplitArgs(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        try:
+            values = list(map(str, values.split(",")))
+        except ValueError:
+            raise argparse.ArgumentError(self, "invalid values: %r" % values)
+        # check all elements in list are greater than 0
+        if not all(str(x) for x in values):
+            raise argparse.ArgumentError(self, "all elements must be a string")
+        setattr(namespace, self.dest, values)
+
+
+# From https://stackoverflow.com/a/63684031
+def search(regex: str, df, case=False, invert=False):
+    """Search all the text columns of `df`, return rows with any matches."""
+    textlikes = df.select_dtypes(include=[object, "string"])
+    if invert:
+        return df[
+            ~textlikes.apply(
+                lambda column: column.str.contains(
+                    regex, regex=True, case=case, na=False
+                )
+            ).any(axis=1)
+        ]
+    else:
+        return df[
+            textlikes.apply(
+                lambda column: column.str.contains(
+                    regex, regex=True, case=case, na=False
+                )
+            ).any(axis=1)
+        ]
+
+
 def fast_flatten(input_list):
     return list(chain.from_iterable(input_list))
 
@@ -202,6 +236,7 @@ help_msg = {
     "outfile": "Output file name",
     "paired": "Only keep paired-end samples",
     "combine": "Combine all output files into one",
+    "exclude_terms": "A comma-separated list of terms to exclude from the metadata",
     "clean": "Remove existing output files",
     "help": "Help message",
     "debug": "Print debug messages",
@@ -242,6 +277,13 @@ def get_arguments(argv=None):
         default=None,
         help=help_msg["ena_filter"],
         required=False,
+    )
+    optional.add_argument(
+        "--exclude-terms",
+        default=None,
+        dest="exclude_terms",
+        action=SplitArgs,
+        help=help_msg["exclude_terms"],
     )
     optional.add_argument(
         "-p",

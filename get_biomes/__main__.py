@@ -20,6 +20,7 @@ from get_biomes.utils import (
     get_mgnify_data,
     get_ena_data,
     create_output_files,
+    search,
 )
 from get_biomes.defaults import API_BASE
 from jsonapi_client import Filter, Session
@@ -136,6 +137,15 @@ def main():
                 dfs[columns] = None
 
             dfs["query_biome"] = biome
+
+            if args.exclude_terms is not None:
+                if len(args.exclude_terms) > 1:
+                    terms = "|".join(args.exclude_terms)
+                else:
+                    terms = args.exclude_terms[0]
+
+                dfs = search(terms, dfs, invert=True)
+
             logging.info("::: Writing output file...")
             dfs.to_csv(
                 output_files[biome],
