@@ -28,17 +28,20 @@ def download_url(url, path):
     http = requests.Session()
     http.mount("https://", adapter)
     http.mount("http://", adapter)
-    r = http.get(f"http://{url}", timeout=10, stream=True)
+    try:
+        r = http.get(f"http://{url}", timeout=10, stream=True)
 
-    file_name = os.path.join(path, basename(url))
+        file_name = os.path.join(path, basename(url))
 
-    if r.status_code == requests.codes.ok:
-        with open(file_name, "wb") as f:
-            for data in r:
-                f.write(data)
-        return basename(url), True, r.status_code, url
-    else:
-        return basename(url), False, r.status_code, url
+        if r.status_code == requests.codes.ok:
+            with open(file_name, "wb") as f:
+                for data in r:
+                    f.write(data)
+            return basename(url), True, r.status_code, url
+        else:
+            return basename(url), False, r.status_code, url
+    except Exception as e:
+        return basename(url), False, e, url
 
 
 log = logging.getLogger("my_logger")
