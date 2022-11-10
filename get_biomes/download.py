@@ -72,7 +72,7 @@ def download(args):
         ncols=80,
         leave=False,
     ):
-        wget.download(url, out=args.outdir)
+        wget.download(f"http://{url}", out=args.outdir)
 
         # obj = SmartDL(
         #     f"http://{url}", args.outdir, threads=args.threads, progress_bar=False
