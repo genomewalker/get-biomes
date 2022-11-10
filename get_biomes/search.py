@@ -95,62 +95,64 @@ def search(args):
                         leave=False,
                     )
                 ]
+            if len(samples > 0):
+                samples = concat_df(samples)
 
-            samples = concat_df(samples)
+                log.info("::: Getting ENA links...")
 
-            log.info("::: Getting ENA links...")
-
-            p = Pool(args.threads)
-            dfs = list(
-                tqdm.tqdm(
-                    p.imap_unordered(
-                        partial(get_ena_data, filter_conditions=args.ena_filter),
-                        samples.accession,
-                    ),
-                    total=len(samples.accession),
-                    leave=False,
-                    ncols=80,
-                    desc="Samples processed",
+                p = Pool(args.threads)
+                dfs = list(
+                    tqdm.tqdm(
+                        p.imap_unordered(
+                            partial(get_ena_data, filter_conditions=args.ena_filter),
+                            samples.accession,
+                        ),
+                        total=len(samples.accession),
+                        leave=False,
+                        ncols=80,
+                        desc="Samples processed",
+                    )
                 )
-            )
-            p.close()
-            p.join()
-            # print(dfs)
-            dfs = [x for x in dfs if x is not None]
-            if len(dfs) > 0:
-                dfs = concat_df(dfs)
-                dfs = samples.merge(dfs, on="sample_accession")
-            else:
-                columns = [
-                    "study_accession",
-                    "experiment_accession",
-                    "run_accession",
-                    "read_count",
-                    "instrument_model",
-                    "instrument_platform",
-                    "library_layout",
-                    "library_strategy",
-                    "library_selection",
-                    "fastq_ftp",
-                ]
-                dfs[columns] = None
-
-            dfs["query_biome"] = biome
-
-            if args.exclude_terms is not None:
-                if len(args.exclude_terms) > 1:
-                    terms = "|".join(args.exclude_terms)
+                p.close()
+                p.join()
+                # print(dfs)
+                dfs = [x for x in dfs if x is not None]
+                if len(dfs) > 0:
+                    dfs = concat_df(dfs)
+                    dfs = samples.merge(dfs, on="sample_accession")
                 else:
-                    terms = args.exclude_terms[0]
+                    columns = [
+                        "study_accession",
+                        "experiment_accession",
+                        "run_accession",
+                        "read_count",
+                        "instrument_model",
+                        "instrument_platform",
+                        "library_layout",
+                        "library_strategy",
+                        "library_selection",
+                        "fastq_ftp",
+                    ]
+                    dfs[columns] = None
 
-                dfs = search_str(terms, dfs, invert=True)
+                dfs["query_biome"] = biome
 
-            logging.info("::: Writing output file...")
-            dfs.to_csv(
-                output_files[biome],
-                sep="\t",
-                index=False,
-            )
+                if args.exclude_terms is not None:
+                    if len(args.exclude_terms) > 1:
+                        terms = "|".join(args.exclude_terms)
+                    else:
+                        terms = args.exclude_terms[0]
+
+                    dfs = search_str(terms, dfs, invert=True)
+
+                logging.info("::: Writing output file...")
+                dfs.to_csv(
+                    output_files[biome],
+                    sep="\t",
+                    index=False,
+                )
+            else:
+                logging.info("No samples found for this biome, skipping")
 
     if args.combine:
         logging.info("Combining output files...")
@@ -160,7 +162,8 @@ def search(args):
         for file in output_files.values():
             if file == output_files["combined"]:
                 continue
-            dfs.append(pd.read_csv(file, sep="\t"))
+            if os.path.exists(file):
+                dfs.append(pd.read_csv(file, sep="\t"))
         dfs = concat_df(dfs)
         dfs.drop_duplicates().to_csv(output_files["combined"], sep="\t", index=False)
 
