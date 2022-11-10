@@ -34,9 +34,11 @@ def download_url(url, path):
         file_name = os.path.join(path, basename(url))
 
         if r.status_code == requests.codes.ok:
-            with open(file_name, "wb") as f:
-                for data in r:
-                    f.write(data)
+            with requests.get(url, stream=True) as r:
+                r.raise_for_status()
+                with open(file_name, "wb") as f:
+                    for chunk in r.iter_content(chunk_size=8192):
+                        f.write(chunk)
             return basename(url), True, r.status_code, url
         else:
             return basename(url), False, r.status_code, url
