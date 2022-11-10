@@ -162,6 +162,6 @@ def search(args):
                 continue
             dfs.append(pd.read_csv(file, sep="\t"))
         dfs = concat_df(dfs)
-        dfs.to_csv(output_files["combined"], sep="\t", index=False)
+        dfs.drop_duplicates().to_csv(output_files["combined"], sep="\t", index=False)
 
     logging.info("ALL DONE.")
