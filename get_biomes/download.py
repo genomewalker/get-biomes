@@ -11,6 +11,9 @@ import tqdm
 import os
 from functools import partial
 from multiprocessing.pool import ThreadPool
+import sys
+
+sys.setrecursionlimit(10**6)
 
 
 def download_url(url, path):
