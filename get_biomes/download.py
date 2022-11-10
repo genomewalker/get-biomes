@@ -97,7 +97,7 @@ def download(args):
                 if obj.get_dl_size(human=False) - prev > 1:
                     pbar.update(obj.get_dl_size(human=False) - prev)
                     prev = obj.get_dl_size(human=False)
-            files.append((basename(url), obj.isSuccessful(), obj.get_errors(), url))
+        files.append((basename(url), obj.isSuccessful(), obj.get_errors(), url))
     # Update report success with the new report
     if os.path.exists(download_report):
         report = pd.DataFrame(files, columns=["filename", "success", "error", "url"])
