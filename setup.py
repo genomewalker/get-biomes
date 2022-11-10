@@ -1,7 +1,14 @@
 from setuptools import setup
 import versioneer
 
-requirements = ["pandas>=1.3.3", "tqdm>=4.50.0", "jsonapi-client", "requests", "tqdm"]
+requirements = [
+    "pandas>=1.3.3",
+    "tqdm>=4.50.0",
+    "jsonapi-client",
+    "requests",
+    "tqdm",
+    "pySmartDL",
+]
 
 setup(
     setup_requires=[

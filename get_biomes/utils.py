@@ -51,7 +51,7 @@ class SplitArgs(argparse.Action):
 
 
 # From https://stackoverflow.com/a/63684031
-def search(regex: str, df, case=False, invert=False):
+def search_str(regex: str, df, case=False, invert=False):
     """Search all the text columns of `df`, return rows with any matches."""
     textlikes = df.select_dtypes(include=[object, "string"])
     if invert:
@@ -238,6 +238,8 @@ help_msg = {
     "combine": "Combine all output files into one",
     "exclude_terms": "A comma-separated list of terms to exclude from the metadata",
     "clean": "Remove existing output files",
+    "input": "A txt file containing the biome' fastq files to download",
+    "outdir": "The directory to save the fastq files",
     "help": "Help message",
     "debug": "Print debug messages",
     "version": "Print program version",
@@ -250,11 +252,49 @@ def get_arguments(argv=None):
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         add_help=False,
     )
+    parser.add_argument(
+        "-h",
+        "--help",
+        action="help",
+        default=argparse.SUPPRESS,
+        help="show this help message and exit",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version="%(prog)s " + __version__,
+        help=help_msg["version"],
+    )
 
-    required = parser.add_argument_group("required arguments")
-    optional = parser.add_argument_group("optional arguments")
+    # Same subparsers as usual
+    sub_parsers = parser.add_subparsers(
+        help="positional arguments",
+        dest="action",
+    )
 
-    required.add_argument(
+    # Create parent subparser. Note `add_help=False` and creation via `argparse.`
+    parent_parser = argparse.ArgumentParser(add_help=False)
+    optional = parent_parser._action_groups.pop()
+    optional.add_argument(
+        "--debug", dest="debug", action="store_true", help=help_msg["debug"]
+    )
+
+    # create the parser sub-commands
+    parser_search = sub_parsers.add_parser(
+        "search",
+        help="Search for biomes in MGnify and ENA",
+        parents=[parent_parser],
+    )
+    parser_download = sub_parsers.add_parser(
+        "download",
+        help="Download the biomes gathered by the subcommand search",
+        parents=[parent_parser],
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+
+    search_required = parser_search.add_argument_group("search required arguments")
+    search_optional = parser_search.add_argument_group("search optional arguments")
+    search_required.add_argument(
         "-b",
         "--biomes",
         dest="biomes",
@@ -262,7 +302,7 @@ def get_arguments(argv=None):
         help=help_msg["biomes"],
         required=True,
     )
-    optional.add_argument(
+    search_optional.add_argument(
         "--mgnify-filter",
         type=lambda x: is_valid_filter(parser, x, "--mgnify-filter", mgnify_filters),
         dest="mg_filter",
@@ -270,7 +310,7 @@ def get_arguments(argv=None):
         help=help_msg["mg_filter"],
         required=False,
     )
-    optional.add_argument(
+    search_optional.add_argument(
         "--ena-filter",
         type=lambda x: is_valid_filter(parser, x, "--ena-filter", ena_filters),
         dest="ena_filter",
@@ -278,14 +318,14 @@ def get_arguments(argv=None):
         help=help_msg["ena_filter"],
         required=False,
     )
-    optional.add_argument(
+    search_optional.add_argument(
         "--exclude-terms",
         default=None,
         dest="exclude_terms",
         action=SplitArgs,
         help=help_msg["exclude_terms"],
     )
-    optional.add_argument(
+    search_optional.add_argument(
         "-p",
         "--prefix",
         type=str,
@@ -293,7 +333,7 @@ def get_arguments(argv=None):
         dest="prefix",
         help=help_msg["prefix"],
     )
-    optional.add_argument(
+    search_optional.add_argument(
         "-t",
         "--threads",
         type=lambda x: int(
@@ -304,41 +344,60 @@ def get_arguments(argv=None):
         help=help_msg["threads"],
         required=False,
     )
-    optional.add_argument(
+    search_optional.add_argument(
         "--combine",
         dest="combine",
         action="store_true",
         help=help_msg["combine"],
         required=False,
     )
-    optional.add_argument(
+    search_optional.add_argument(
         "--clean",
         dest="clean_output",
         action="store_true",
         help=help_msg["clean"],
         required=False,
     )
-    optional.add_argument(
-        "--debug",
-        dest="debug",
+
+    download_required = parser_download.add_argument_group(
+        "download required arguments"
+    )
+    download_optional = parser_download.add_argument_group(
+        "download optional arguments"
+    )
+    download_required.add_argument(
+        "-i",
+        "--input",
+        dest="input",
+        type=lambda x: is_valid_file(parser, x, "--input"),
+        help=help_msg["biomes"],
+        required=True,
+    )
+    download_optional.add_argument(
+        "-o",
+        "--outdir",
+        type=str,
+        dest="outdir",
+        help=help_msg["outdir"],
+    )
+    download_optional.add_argument(
+        "--clean",
+        dest="clean_output",
         action="store_true",
-        help=help_msg["debug"],
+        help=help_msg["clean"],
         required=False,
     )
-    optional.add_argument(
-        "--version",
-        action="version",
-        version="%(prog)s " + __version__,
-        help=help_msg["version"],
+    download_optional.add_argument(
+        "-t",
+        "--threads",
+        type=lambda x: int(
+            check_values(x, minval=1, maxval=1000, parser=parser, var="--threads")
+        ),
+        dest="threads",
+        default=1,
+        help=help_msg["threads"],
+        required=False,
     )
-    optional.add_argument(
-        "-h",
-        "--help",
-        action="help",
-        default=argparse.SUPPRESS,
-        help="show this help message and exit",
-    )
-    # reference_lengths
 
     args = parser.parse_args(None if sys.argv[1:] else ["-h"])
     return args
