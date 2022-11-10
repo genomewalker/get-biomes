@@ -21,6 +21,7 @@ mgnify_filters = [
     "environment_feature",
     "study_accession",
     "include",
+    "sequencing_method",
 ]
 ena_library_strategy = [
     "WGS",
