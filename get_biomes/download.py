@@ -18,9 +18,9 @@ sys.setrecursionlimit(10**6)
 
 def download_url(url, path):
     retry_strategy = Retry(
-        total=5,
-        backoff_factor=1,
-        status_forcelist=[429, 500, 502, 503, 504, 403],
+        total=10,
+        backoff_factor=1.5,
+        status_forcelist=tuple(x for x in requests.status_codes._codes if x != 200),
         allowed_methods=["HEAD", "GET", "OPTIONS"],
     )
     adapter = HTTPAdapter(max_retries=retry_strategy)

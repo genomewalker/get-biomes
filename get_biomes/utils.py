@@ -493,7 +493,7 @@ def get_mgnify_data(sample):
 def get_data(url):
     # Get the data from the API
     retry_strategy = Retry(
-        total=5,
+        total=10,
         backoff_factor=1,
         status_forcelist=[429, 500, 502, 503, 504, 403],
         allowed_methods=["HEAD", "GET", "OPTIONS"],
