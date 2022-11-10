@@ -95,7 +95,7 @@ def search(args):
                         leave=False,
                     )
                 ]
-            if len(samples > 0):
+            if len(samples) > 0:
                 samples = concat_df(samples)
 
                 log.info("::: Getting ENA links...")
