@@ -29,19 +29,17 @@ def download_url(url, path):
     http.mount("https://", adapter)
     http.mount("http://", adapter)
     try:
-        r = http.get(f"http://{url}", timeout=10, stream=True)
-
         file_name = os.path.join(path, basename(url))
 
-        if r.status_code == requests.codes.ok:
-            with requests.get(url, stream=True) as r:
+        with http.get(f"http://{url}", timeout=10, stream=True) as r:
+            if r.status_code == requests.codes.ok:
                 r.raise_for_status()
                 with open(file_name, "wb") as f:
                     for chunk in r.iter_content(chunk_size=8192):
                         f.write(chunk)
-            return basename(url), True, r.status_code, url
-        else:
-            return basename(url), False, r.status_code, url
+                return basename(url), True, r.status_code, url
+            else:
+                return basename(url), False, r.status_code, url
     except Exception as e:
         return basename(url), False, e, url
 
