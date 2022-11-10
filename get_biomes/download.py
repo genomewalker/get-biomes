@@ -76,14 +76,14 @@ def download(args):
     ):
 
         obj = SmartDL(
-            f"http://{url}", args.outdir, threads=args.threads, progress_bar=True
+            f"http://{url}", args.outdir, threads=args.threads, progress_bar=False
         )
         try:
             obj.start()
         except Exception:
             files.append((basename(url), obj.isSuccessful(), obj.get_errors(), url))
             continue
-        prev = 0
+        # prev = 0
         # while not obj.isFinished():
         #     with tqdm.tqdm(
         #         total=obj.get_final_filesize(human=False),
