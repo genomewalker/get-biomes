@@ -30,7 +30,6 @@ def download_url(url, path):
     http.mount("http://", adapter)
     try:
         file_name = os.path.join(path, basename(url))
-
         with http.get(f"http://{url}", timeout=10, stream=True) as r:
             if r.status_code == requests.codes.ok:
                 r.raise_for_status()
