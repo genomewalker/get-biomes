@@ -13,8 +13,33 @@ import requests
 import tqdm
 import os
 from functools import partial
-from multiprocessing import Pool
 import wget
+from multiprocessing.pool import ThreadPool
+
+
+def download_url(url, path):
+    retry_strategy = Retry(
+        total=5,
+        backoff_factor=1,
+        status_forcelist=[429, 500, 502, 503, 504, 403],
+        allowed_methods=["HEAD", "GET", "OPTIONS"],
+    )
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    http = requests.Session()
+    http.mount("https://", adapter)
+    http.mount("http://", adapter)
+    r = http.get(url, timeout=10, stream=True)
+
+    file_name = os.path.join(path, basename(url))
+
+    if r.status_code == requests.codes.ok:
+        with open(file_name, "wb") as f:
+            for data in r:
+                f.write(data)
+        return basename(url), True, r.status_code, url
+    else:
+        return basename(url), False, r.status_code, url
+
 
 log = logging.getLogger("my_logger")
 
@@ -65,45 +90,22 @@ def download(args):
 
     files = []
     log.info("Downloading files...")
-    for url in tqdm.tqdm(
-        urls,
-        total=len(urls),
-        desc="Files downloaded",
-        ncols=80,
-        leave=False,
+    # Run 5 multiple threads. Each call will take the next element in urls list
+    results = ThreadPool(args.threads).imap_unordered(
+        partial(download_url, path=args.outdir), urls
+    )
+
+    for r in tqdm.tqdm(
+        results, total=len(urls), desc="Files downloaded", ncols=80, leave=False
     ):
-        wget.download(f"http://{url}", out=args.outdir)
+        files.append(r)
 
-        # obj = SmartDL(
-        #     f"http://{url}", args.outdir, threads=args.threads, progress_bar=False
-        # )
-        # try:
-        #     obj.start()
-        # except Exception:
-        #     files.append((basename(url), obj.isSuccessful(), obj.get_errors(), url))
-        #     continue
-        # prev = 0
-        # while not obj.isFinished():
-        #     with tqdm.tqdm(
-        #         total=obj.get_final_filesize(human=False),
-        #         leave=False,
-        #         desc=basename(url),
-        #         ncols=80,
-        #         unit="B",
-        #         unit_scale=True,
-        #         unit_divisor=1024,
-        #     ) as pbar:
-        #         if obj.get_dl_size(human=False) - prev > 1:
-        #             pbar.update(obj.get_dl_size(human=False) - prev)
-        #             prev = obj.get_dl_size(human=False)
-    #     files.append((basename(url), obj.isSuccessful(), obj.get_errors(), url))
-    # # Update report success with the new report
-    # if os.path.exists(download_report):
-    #     report = pd.DataFrame(files, columns=["filename", "success", "error", "url"])
-    #     if report_success.shape[0] > 0:
-    #         report = pd.concat([report, report_success], axis=0)
-    # else:
-    #     report = pd.DataFrame(files, columns=["filename", "success", "error", "url"])
+    if os.path.exists(download_report):
+        report = pd.DataFrame(files, columns=["filename", "success", "error", "url"])
+        if report_success.shape[0] > 0:
+            report = pd.concat([report, report_success], axis=0)
+    else:
+        report = pd.DataFrame(files, columns=["filename", "success", "error", "url"])
 
-    # report.to_csv(download_report, sep="\t", index=False)
+    report.to_csv(download_report, sep="\t", index=False)
     log.info("Done!")
