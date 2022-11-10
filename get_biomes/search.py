@@ -29,7 +29,6 @@ import urllib.parse
 import tqdm
 from multiprocessing import Pool
 import os
-import hashlib
 from pathlib import Path
 from functools import partial
 

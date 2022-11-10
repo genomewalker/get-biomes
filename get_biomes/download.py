@@ -1,9 +1,6 @@
 from os import makedirs
 from os.path import basename
 from os.path import join
-from concurrent.futures import ThreadPoolExecutor
-from concurrent.futures import as_completed
-
 from get_biomes.utils import get_arguments, fast_flatten
 import logging
 import pandas as pd
@@ -13,7 +10,6 @@ import requests
 import tqdm
 import os
 from functools import partial
-import wget
 from multiprocessing.pool import ThreadPool
 
 

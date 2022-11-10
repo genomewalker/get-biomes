@@ -7,7 +7,6 @@ requirements = [
     "jsonapi-client",
     "requests",
     "tqdm",
-    "wget",
 ]
 
 setup(

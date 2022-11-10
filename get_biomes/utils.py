@@ -23,10 +23,6 @@ from get_biomes.defaults import (
     mgnify_filters,
     ena_filters,
     API_BASE_ENA,
-    ena_library_source,
-    ena_library_selection,
-    ena_library_strategy,
-    ena_library_layout,
 )
 
 log = logging.getLogger("my_logger")
