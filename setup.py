@@ -7,7 +7,7 @@ requirements = [
     "jsonapi-client",
     "requests",
     "tqdm",
-    "pySmartDL",
+    "wget",
 ]
 
 setup(

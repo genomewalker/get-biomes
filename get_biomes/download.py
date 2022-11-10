@@ -14,9 +14,7 @@ import tqdm
 import os
 from functools import partial
 from multiprocessing import Pool
-from pySmartDL import SmartDL
-import math
-import urllib
+import wget
 
 log = logging.getLogger("my_logger")
 
@@ -74,15 +72,16 @@ def download(args):
         ncols=80,
         leave=False,
     ):
+        wget.download(url, out=args.outdir)
 
-        obj = SmartDL(
-            f"http://{url}", args.outdir, threads=args.threads, progress_bar=False
-        )
-        try:
-            obj.start()
-        except Exception:
-            files.append((basename(url), obj.isSuccessful(), obj.get_errors(), url))
-            continue
+        # obj = SmartDL(
+        #     f"http://{url}", args.outdir, threads=args.threads, progress_bar=False
+        # )
+        # try:
+        #     obj.start()
+        # except Exception:
+        #     files.append((basename(url), obj.isSuccessful(), obj.get_errors(), url))
+        #     continue
         # prev = 0
         # while not obj.isFinished():
         #     with tqdm.tqdm(
@@ -97,14 +96,14 @@ def download(args):
         #         if obj.get_dl_size(human=False) - prev > 1:
         #             pbar.update(obj.get_dl_size(human=False) - prev)
         #             prev = obj.get_dl_size(human=False)
-        files.append((basename(url), obj.isSuccessful(), obj.get_errors(), url))
-    # Update report success with the new report
-    if os.path.exists(download_report):
-        report = pd.DataFrame(files, columns=["filename", "success", "error", "url"])
-        if report_success.shape[0] > 0:
-            report = pd.concat([report, report_success], axis=0)
-    else:
-        report = pd.DataFrame(files, columns=["filename", "success", "error", "url"])
+    #     files.append((basename(url), obj.isSuccessful(), obj.get_errors(), url))
+    # # Update report success with the new report
+    # if os.path.exists(download_report):
+    #     report = pd.DataFrame(files, columns=["filename", "success", "error", "url"])
+    #     if report_success.shape[0] > 0:
+    #         report = pd.concat([report, report_success], axis=0)
+    # else:
+    #     report = pd.DataFrame(files, columns=["filename", "success", "error", "url"])
 
-    report.to_csv(download_report, sep="\t", index=False)
+    # report.to_csv(download_report, sep="\t", index=False)
     log.info("Done!")
