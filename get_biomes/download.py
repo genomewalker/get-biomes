@@ -28,7 +28,7 @@ def download_url(url, path):
     http = requests.Session()
     http.mount("https://", adapter)
     http.mount("http://", adapter)
-    r = http.get(url, timeout=10, stream=True)
+    r = http.get(f"http://{url}", timeout=10, stream=True)
 
     file_name = os.path.join(path, basename(url))
 
