@@ -70,6 +70,8 @@ optional arguments:
 
 
 ```
+$ getBiomes search --help
+
 usage: getBiomes search [-h] [--debug] -b BIOMES [--mgnify-filter MG_FILTER] [--ena-filter ENA_FILTER]
                         [--exclude-terms EXCLUDE_TERMS] [-p PREFIX] [-t THREADS] [--combine] [--clean]
 
@@ -100,7 +102,7 @@ search optional arguments:
                         Number of threads to use
   --combine             Combine all output files into one
   --clean               Remove existing output files
-  ```
+```
 
 
 One would run getBiomes search as:
@@ -123,6 +125,7 @@ getBiomes -b test-biomes.txt -t 24 --mgnify-filter '{"instrument_platform":"illu
 ```
 
 The output file will contain the following columns:
+
 ```
 accession
 sample_accession
@@ -152,10 +155,33 @@ query_biome
 
 ## Download
 
+```
+$ getBiomes download --help
+
+usage: getBiomes download [-h] [--debug] -i INPUT [-o OUTDIR] [--clean] [-t THREADS]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --debug               Print debug messages (default: False)
+
+download required arguments:
+  -i INPUT, --input INPUT
+                        A txt file containing MGnify biomes. Ex: root:Environmental:Aquatic:Marine
+                        (default: None)
+
+download optional arguments:
+  -o OUTDIR, --outdir OUTDIR
+                        The directory to save the fastq files (default: None)
+  --clean               Remove existing output files (default: False)
+  -t THREADS, --threads THREADS
+                        Number of threads to use (default: 1)
+```
+
 Once the samples have been retrieved, one can download them using the subcommand `download`. For example:
 
 ```bash
 getBiomes download -i test-biomes__combined.tsv -o test-biomes -t 24
 ```
 
-Where `test-biomes__combined.tsv` is the output file from the subcommand `search` and `test-biomes` is the directory where the samples will be downloaded.
+Where `test-biomes__combined.tsv` is the output file from the subcommand `search` and `test-biomes` is the directory where the samples will be downloaded. The output directory contains the file `download_report.tsv` with the status of the downloaded files. One can continue downloading the samples that failed in a previous run. If `--clean` is specified, the output directory will be removed before downloading the samples. 
+

@@ -16,35 +16,7 @@ from functools import partial
 from multiprocessing import Pool
 from pySmartDL import SmartDL
 import math
-
-
-def get_data(url, path):
-    url = f"http://{url}"
-    filename = basename(url)
-    # construct the output path
-    outpath = join(path, filename)
-    # Get the data from the API
-    retry_strategy = Retry(
-        total=5,
-        backoff_factor=1,
-        status_forcelist=[429, 500, 502, 503, 504, 403],
-        allowed_methods=["HEAD", "GET", "OPTIONS"],
-    )
-    adapter = HTTPAdapter(max_retries=retry_strategy)
-    http = requests.Session()
-    http.mount("https://", adapter)
-    http.mount("http://", adapter)
-    r = http.get(url, timeout=10, stream=True)
-    # Parse the data
-    if r.status_code == 200:
-        with open(outpath, "wb") as fastq:
-            for chunk in r.iter_content(chunk_size=20480):
-                if chunk:
-                    fastq.write(chunk)
-        return (url, outpath)
-    else:
-        return (url, None)
-
+import urllib
 
 log = logging.getLogger("my_logger")
 
@@ -73,10 +45,20 @@ def download(args):
     # if output directory does not exist, create it if not delete
     if not os.path.exists(args.outdir):
         makedirs(args.outdir)
-    download_report = os.path.join(args.outdir, "download_report.tsv")
+
     # Check if download_report file exists
+    download_report = os.path.join(args.outdir, "download_report.tsv")
     if os.path.exists(download_report):
         report = pd.read_csv(download_report, sep="\t", header=0)
+        report_success = report[report["success"] == True]
+        report_failed = report[report["success"] == False]
+        log.info(
+            f"Found {report_success.shape[0]} successful downloads and {report_failed.shape[0]} failed downloads"
+        )
+        urls = list(set(urls) - set(report_success["url"]))
+        if len(urls) == 0:
+            logging.info("All files have been downloaded successfully")
+            return
 
     if args.clean_output and os.path.exists(args.outdir):
         log.info("Output directory already exists, deleting it...")
@@ -92,10 +74,16 @@ def download(args):
         ncols=80,
         leave=False,
     ):
+
         obj = SmartDL(
             f"http://{url}", args.outdir, threads=args.threads, progress_bar=False
         )
-        obj.start(blocking=False)
+        try:
+            obj.start(blocking=False)
+        except Exception:
+            files.append((basename(url), obj.isSuccessful(), obj.get_errors(), url))
+            continue
+
         with tqdm.tqdm(
             total=obj.get_final_filesize(human=False),
             leave=False,
@@ -111,5 +99,13 @@ def download(args):
                     pbar.update(obj.get_dl_size(human=False) - prev)
                     prev = obj.get_dl_size(human=False)
         files.append((basename(url), obj.isSuccessful(), obj.get_errors(), url))
-    print(files)
+    # Update report success with the new report
+    if os.path.exists(download_report):
+        report = pd.DataFrame(files, columns=["filename", "success", "error", "url"])
+        if report_success.shape[0] > 0:
+            report = pd.concat([report, report_success], axis=0)
+    else:
+        report = pd.DataFrame(files, columns=["filename", "success", "error", "url"])
+
+    report.to_csv(download_report, sep="\t", index=False)
     log.info("Done!")
