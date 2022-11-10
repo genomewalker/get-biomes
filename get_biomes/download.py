@@ -83,18 +83,17 @@ def download(args):
         except Exception:
             files.append((basename(url), obj.isSuccessful(), obj.get_errors(), url))
             continue
-
-        with tqdm.tqdm(
-            total=obj.get_final_filesize(human=False),
-            leave=False,
-            desc=basename(url),
-            ncols=80,
-            unit="B",
-            unit_scale=True,
-            unit_divisor=1024,
-        ) as pbar:
-            prev = 0
-            while not obj.isFinished():
+        prev = 0
+        while not obj.isFinished():
+            with tqdm.tqdm(
+                total=obj.get_final_filesize(human=False),
+                leave=False,
+                desc=basename(url),
+                ncols=80,
+                unit="B",
+                unit_scale=True,
+                unit_divisor=1024,
+            ) as pbar:
                 if obj.get_dl_size(human=False) - prev > 1:
                     pbar.update(obj.get_dl_size(human=False) - prev)
                     prev = obj.get_dl_size(human=False)
