@@ -166,7 +166,7 @@ def search(args):
                 dfs.append(pd.read_csv(file, sep="\t"))
         dfs = concat_df(dfs)
         # A sample might belong to two query biomes (lineage), let's keep the one more detailed
-        dfs["query_biome_n"] = dfs["query_biome_n"].str.split(";").str.len()
+        dfs["query_biome_n"] = dfs["query_biome"].str.split(";").str.len()
         dfs = dfs.loc[
             dfs.reset_index().groupby(["run_accession"])["query_biome_n"].idxmax()
         ]
