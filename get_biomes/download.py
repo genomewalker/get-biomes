@@ -65,6 +65,8 @@ def download(args):
 
     biomes = pd.read_csv(args.input, sep="\t", header=0)
     urls = fast_flatten(biomes["fastq_ftp"].str.split(";", expand=True).values.tolist())
+    # remove None from list. Can be the case that we have more than two fastq
+    urls = [x for x in urls if x is not None]
 
     # if output directory does not exist, create it if not delete
     if not os.path.exists(args.outdir):
