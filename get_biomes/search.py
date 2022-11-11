@@ -165,6 +165,12 @@ def search(args):
             if os.path.exists(file):
                 dfs.append(pd.read_csv(file, sep="\t"))
         dfs = concat_df(dfs)
+        # A sample might belong to two query biomes (lineage), let's keep the one more detailed
+        dfs["query_biome_n"] = dfs["query_biome_n"].str.split(";").str.len()
+        dfs = dfs.loc[
+            dfs.reset_index().groupby(["run_accession"])["query_biome_n"].idxmax()
+        ]
+        dfs = dfs.drop(columns=["query_biome_n"])
         dfs.drop_duplicates().to_csv(output_files["combined"], sep="\t", index=False)
 
     logging.info("ALL DONE.")
