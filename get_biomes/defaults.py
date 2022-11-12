@@ -2,6 +2,7 @@ API_BASE = "https://www.ebi.ac.uk/metagenomics/api/v1"
 API_BASE_ENA = "https://www.ebi.ac.uk/ena/portal/api/"
 
 mgnify_filters = [
+    "accession",
     "experiment_type",
     "biome_name",
     "lineage",

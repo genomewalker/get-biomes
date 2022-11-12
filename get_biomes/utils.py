@@ -464,13 +464,14 @@ def get_mgnify_data(sample):
     # instrument_model = None
     # sequencing_method = None
     # investigation_type = None
-    # for k in sample.sample_metadata:
-    #     if k["key"] == "instrument model":
-    #         instrument_model = k["value"]
-    #     elif k["key"] == "sequencing method":
-    #         sequencing_method = k["value"]
-    #     elif k["key"] == "investigation type":
-    #         investigation_type = k["value"]
+    geo_loc_name_1 = None
+    for k in sample.sample_metadata:
+        if k["key"] == "geographic location (country and/or sea,region)":
+            geo_loc_name_1 = k["value"]
+        # elif k["key"] == "sequencing method":
+        #     sequencing_method = k["value"]
+        # elif k["key"] == "investigation type":
+        #     investigation_type = k["value"]
     d = {
         "accession": sample.accession,
         "sample_accession": sample.biosample,
@@ -478,6 +479,7 @@ def get_mgnify_data(sample):
         "longitude": sample.longitude,
         "latitude": sample.latitude,
         "geo_loc_name": sample.geo_loc_name,
+        "geo_loc_name_1": geo_loc_name_1,
         "studies": ",".join([study.accession for study in sample.studies]),
         "biome": sample.biome.id,
         "sample_desc": sample.sample_desc,
